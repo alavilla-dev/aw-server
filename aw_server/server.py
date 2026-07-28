@@ -14,7 +14,7 @@ from flask import (
 )
 from flask_cors import CORS
 
-from . import rest
+from . import extension_cors, rest
 from .api import ServerAPI
 from .custom_static import get_custom_static_blueprint
 from .log import FlaskLogHandler
@@ -105,12 +105,20 @@ def _config_cors(cors_origins: List[str], testing: bool):
         # Used for development of aw-webui
         cors_origins.append("http://127.0.0.1:27180/*")
 
+    # Capture user-configured origins before appending the built-in wildcard.
+    # extension_cors uses this list to exempt explicit opt-ins from scope narrowing.
+    user_origins = list(cors_origins)
+
     # TODO: This could probably be more specific
     #       See https://github.com/ActivityWatch/aw-server/pull/43#issuecomment-386888769
     cors_origins.append("moz-extension://*")
 
     # See: https://flask-cors.readthedocs.org/en/latest/
     CORS(current_app, resources={r"/api/*": {"origins": cors_origins}})
+
+    # Narrow the moz-extension wildcard to only the endpoints aw-watcher-web needs.
+    # See aw_server/extension_cors.py and ActivityWatch/aw-server-rust#637.
+    extension_cors.register(current_app._get_current_object(), user_origins)
 
 
 # Only to be called from aw_server.main function!
