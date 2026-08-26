@@ -6,6 +6,7 @@ host = "localhost"
 port = "5600"
 storage = "peewee"
 cors_origins = ""
+multiuser = false
 
 [server.custom_static]
 
@@ -14,6 +15,7 @@ host = "localhost"
 port = "5666"
 storage = "peewee"
 cors_origins = ""
+multiuser = false
 
 [server-testing.custom_static]
 """.strip()

@@ -38,6 +38,9 @@ def main():
     if settings.custom_static:
         logger.info(f"Using custom_static: {settings.custom_static}")
 
+    if settings.multiuser:
+        logger.info("Multi-user mode ENABLED (per-user token auth + data isolation)")
+
     logger.info("Starting up...")
     _start(
         host=settings.host,
@@ -46,6 +49,7 @@ def main():
         storage_method=storage_method,
         cors_origins=settings.cors_origins,
         custom_static=settings.custom_static,
+        multiuser=settings.multiuser,
     )
 
 
@@ -89,6 +93,14 @@ def parse_settings():
         dest="custom_static",
         help="The custom static directories. Format: watcher_name=path,watcher_name2=path2,...",
     )
+    parser.add_argument(
+        "--multiuser",
+        dest="multiuser",
+        action="store_const",
+        const=True,
+        default=None,
+        help="Enable multi-user mode (per-user token auth and data isolation)",
+    )
     args = parser.parse_args()
     if args.version:
         print(__version__)
@@ -102,6 +114,10 @@ def parse_settings():
     settings.storage = config[configsection]["storage"]
     settings.cors_origins = config[configsection]["cors_origins"]
     settings.custom_static = dict(config[configsection]["custom_static"])
+    _mu = config[configsection]["multiuser"]
+    settings.multiuser = (
+        _mu if isinstance(_mu, bool) else str(_mu).strip().lower() in ("1", "true", "yes")
+    )
 
     """ If a argument is not none, override the config value """
     for key, value in vars(args).items():

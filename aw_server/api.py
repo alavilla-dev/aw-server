@@ -50,11 +50,41 @@ def check_bucket_exists(f):
 
 
 class ServerAPI:
-    def __init__(self, db, testing) -> None:
-        self.db = db
+    def __init__(self, db, testing, multiuser: bool = False) -> None:
+        self._db = db
+        self.multiuser = multiuser
         self.settings = Settings(testing)
         self.testing = testing
         self.last_event = {}  # type: dict
+
+    def _prefix(self) -> str:
+        """Current request's bucket-id namespace prefix ('' in single-user mode)."""
+        if not self.multiuser:
+            return ""
+        from flask import g, has_request_context
+
+        if has_request_context():
+            return getattr(g, "aw_prefix", "")
+        return ""
+
+    @property
+    def db(self):
+        """The datastore for this request.
+
+        In multi-user mode this is a ScopedDatastore namespaced to the authenticated
+        user, so every bucket/event/query access is confined to that user. Outside a
+        request (or in single-user mode) it is the raw shared datastore.
+        """
+        prefix = self._prefix()
+        if prefix:
+            from .multiuser import ScopedDatastore
+
+            return ScopedDatastore(self._db, prefix)
+        return self._db
+
+    def _ekey(self, bucket_id: str) -> str:
+        """last_event cache key, namespaced per user so heartbeats never cross users."""
+        return self._prefix() + bucket_id
 
     def get_info(self) -> Dict[str, Any]:
         """Get server info"""
@@ -302,13 +332,14 @@ class ServerAPI:
         #           That way we could double check that the event has been applied
         #           and if it hasn't we simply replace it with the updated counterpart.
 
+        ekey = self._ekey(bucket_id)
         last_event = None
-        if bucket_id not in self.last_event:
+        if ekey not in self.last_event:
             last_events = self.db[bucket_id].get(limit=1)
             if len(last_events) > 0:
                 last_event = last_events[0]
         else:
-            last_event = self.last_event[bucket_id]
+            last_event = self.last_event[ekey]
 
         if last_event:
             if last_event.data == heartbeat.data:
@@ -320,7 +351,7 @@ class ServerAPI:
                             bucket_id
                         )
                     )
-                    self.last_event[bucket_id] = merged
+                    self.last_event[ekey] = merged
                     self.db[bucket_id].replace_last(merged)
                     return merged
                 else:
@@ -343,7 +374,7 @@ class ServerAPI:
             )
 
         self.db[bucket_id].insert(heartbeat)
-        self.last_event[bucket_id] = heartbeat
+        self.last_event[ekey] = heartbeat
         return heartbeat
 
     def query2(self, name, query, timeperiods, cache):

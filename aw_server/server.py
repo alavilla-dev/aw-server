@@ -37,6 +37,7 @@ class AWFlask(Flask):
         custom_static=dict(),
         static_folder=static_folder,
         static_url_path="",
+        multiuser: bool = False,
     ):
         name = "aw-server"
         self.json_provider_class = CustomJSONProvider
@@ -58,7 +59,13 @@ class AWFlask(Flask):
         if storage_method is None:
             storage_method = aw_datastore.get_storage_methods()["memory"]
         db = Datastore(storage_method, testing=testing)
-        self.api = ServerAPI(db=db, testing=testing)
+        self.api = ServerAPI(db=db, testing=testing, multiuser=multiuser)
+
+        # In multi-user mode, enforce per-user token auth on all /api/* endpoints.
+        if multiuser:
+            from .multiuser import make_auth_before_request
+
+            self.before_request(make_auth_before_request(testing))
 
         self.register_blueprint(root)
         self.register_blueprint(rest.blueprint)
@@ -129,6 +136,7 @@ def _start(
     testing: bool = False,
     cors_origins: List[str] = [],
     custom_static: Dict[str, str] = dict(),
+    multiuser: bool = False,
 ):
     app = AWFlask(
         host,
@@ -136,6 +144,7 @@ def _start(
         storage_method=storage_method,
         cors_origins=cors_origins,
         custom_static=custom_static,
+        multiuser=multiuser,
     )
     try:
         app.run(
