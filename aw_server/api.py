@@ -86,6 +86,25 @@ class ServerAPI:
         """last_event cache key, namespaced per user so heartbeats never cross users."""
         return self._prefix() + bucket_id
 
+    def get_auth_context(self) -> Dict[str, Any]:
+        """Who the current request is authenticated as (multi-user mode)."""
+        if self.multiuser:
+            from flask import g, has_request_context
+
+            if has_request_context():
+                return {
+                    "multiuser": True,
+                    "user": getattr(g, "aw_user", None),
+                    "role": getattr(g, "aw_role", None),
+                }
+        return {"multiuser": self.multiuser, "user": None, "role": None}
+
+    def get_users(self) -> List[str]:
+        """List all usernames (admin-only; the REST layer enforces the role)."""
+        from .auth import list_users
+
+        return [u["username"] for u in list_users(self.testing)]
+
     def get_info(self) -> Dict[str, Any]:
         """Get server info"""
         payload = {

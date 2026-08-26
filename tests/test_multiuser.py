@@ -16,8 +16,9 @@ def users(monkeypatch):
     store = {
         "alice": {"token_sha256": auth.hash_token("tok-alice"), "role": "user"},
         "bob": {"token_sha256": auth.hash_token("tok-bob"), "role": "user"},
+        "root": {"token_sha256": auth.hash_token("tok-root"), "role": "admin"},
     }
-    # verify_token() looks up load_users at call time, so patching here is enough.
+    # verify_token() and impersonation look up load_users at call time.
     monkeypatch.setattr(auth, "load_users", lambda testing=False: store)
     return store
 
@@ -93,6 +94,42 @@ def test_bucket_isolation_between_users(client):
     assert ea[0]["data"] == {"app": "alice-app"}
     assert all(e["data"]["app"].startswith("bob-app") for e in eb)
     assert not any(e["data"] == {"app": "alice-app"} for e in eb)
+
+
+def test_admin_users_endpoint(client):
+    # non-admin is forbidden from listing users
+    assert client.get("/api/0/users", headers=_h("tok-alice")).status_code == 403
+    # admin can list users
+    r = client.get("/api/0/users", headers=_h("tok-root"))
+    assert r.status_code == 200
+    assert set(r.json) == {"alice", "bob", "root"}
+
+
+def test_whoami(client):
+    r = client.get("/api/0/whoami", headers=_h("tok-alice"))
+    assert r.status_code == 200
+    assert r.json["user"] == "alice"
+    assert r.json["role"] == "user"
+
+
+def test_admin_view_as_user(client):
+    # alice creates a bucket with an event
+    assert _mkbucket(client, "b1", "tok-alice").status_code == 200
+    assert _heartbeat(client, "b1", "tok-alice", {"app": "alice-app"}).status_code == 200
+
+    admin = _h("tok-root")
+    # admin's own namespace is empty
+    assert client.get("/api/0/buckets/", headers=admin).json == {}
+    # admin "views as" alice -> sees alice's bucket/events
+    as_alice = {**admin, "X-AW-As-User": "alice"}
+    rb = client.get("/api/0/buckets/", headers=as_alice)
+    assert list(rb.json.keys()) == ["b1"]
+    ev = client.get("/api/0/buckets/b1/events", headers=as_alice).json
+    assert ev[0]["data"] == {"app": "alice-app"}
+
+    # a non-admin cannot impersonate (header ignored) -> still their own (empty) namespace
+    rb2 = client.get("/api/0/buckets/", headers={**_h("tok-bob"), "X-AW-As-User": "alice"})
+    assert rb2.json == {}
 
 
 def test_query_is_scoped(client):

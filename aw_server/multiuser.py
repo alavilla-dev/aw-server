@@ -116,6 +116,17 @@ def make_auth_before_request(testing: bool):
         g.aw_user = identity["username"]
         g.aw_role = identity["role"]
         g.aw_prefix = prefix_for(identity["username"])
+
+        # Admin "view as": an admin may scope the request to another user's data
+        # by sending X-AW-As-User. Non-admins cannot impersonate.
+        if identity["role"] == "admin":
+            target = request.headers.get("X-AW-As-User", "").strip()
+            if target:
+                from .auth import load_users
+
+                if target in load_users(testing=testing):
+                    g.aw_user = target
+                    g.aw_prefix = prefix_for(target)
         return None
 
     return _before_request

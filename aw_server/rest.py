@@ -124,6 +124,24 @@ class InfoResource(Resource):
         return current_app.api.get_info()
 
 
+@api.route("/0/whoami")
+class WhoamiResource(Resource):
+    @copy_doc(ServerAPI.get_auth_context)
+    def get(self):
+        return current_app.api.get_auth_context()
+
+
+@api.route("/0/users")
+class UsersResource(Resource):
+    @copy_doc(ServerAPI.get_users)
+    def get(self):
+        from flask import abort, g
+
+        if getattr(g, "aw_role", None) != "admin":
+            abort(403, "Admin role required")
+        return current_app.api.get_users()
+
+
 # BUCKETS
 
 
