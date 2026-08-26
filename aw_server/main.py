@@ -53,7 +53,7 @@ def parse_settings():
     import argparse
 
     """ CLI Arguments """
-    parser = argparse.ArgumentParser(description="Starts an ActivityWatch server")
+    parser = argparse.ArgumentParser(description="Starts a CEPEM Watch server")
     parser.add_argument(
         "--testing",
         action="store_true",

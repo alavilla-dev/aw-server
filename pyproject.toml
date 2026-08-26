@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "aw-server"
 version = "0.14.0"
-description = "Server for ActivityWatch"
+description = "Server for CEPEM Watch"
 authors = ["Erik Bjäreholt <erik@bjareho.lt>"]
 license = "MPL-2.0"
 include = ["aw_server/static/*"]
