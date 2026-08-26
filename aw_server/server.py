@@ -101,6 +101,22 @@ def static_js(path):
     return send_from_directory(static_folder + "/js", path)
 
 
+@root.route("/api/0/screenshots/<path:relpath>")
+def screenshot_file(relpath):
+    """Serve a locally-stored screenshot captured by aw-watcher-screenshot.
+
+    Images live on disk under the data dir (they are never stored in the DB). In
+    multi-user mode this route is auth-protected like the rest of /api/*, and the
+    web UI passes the token via ?token= since <img> tags can't set headers. Note:
+    the server only serves images present on its own machine (for a central server
+    that would require uploading images — see MULTIUSER_DESIGN.md).
+    """
+    from aw_core.dirs import get_data_dir
+
+    images_root = os.path.join(get_data_dir("aw-watcher-screenshot"), "images")
+    return send_from_directory(images_root, relpath)
+
+
 def _config_cors(cors_origins: List[str], testing: bool):
     if cors_origins:
         logger.warning(

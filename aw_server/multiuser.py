@@ -103,6 +103,10 @@ def make_auth_before_request(testing: bool):
         token = ""
         if auth.startswith("Bearer "):
             token = auth[len("Bearer ") :].strip()
+        # Fallback: allow ?token= for requests that can't set headers (e.g. <img>
+        # tags loading screenshots).
+        if not token:
+            token = (request.args.get("token") or "").strip()
 
         identity = verify_token(token, testing=testing)
         if identity is None:
