@@ -8,7 +8,7 @@ The store is a small JSON file in the aw-server config directory:
     } } }
 
 This is intentionally simple (file-backed, admin-provisioned) — adequate for an
-internal CEPEM deployment behind TLS/VPN. See docs/multiuser-design.md.
+internal CEPEM deployment behind TLS/VPN. See MULTIUSER_DESIGN.md.
 """
 import hashlib
 import hmac

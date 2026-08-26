@@ -1,6 +1,6 @@
 """Multi-user request scoping for CEPEM Watch.
 
-Isolation strategy (see docs/multiuser-design.md): a single database, with every
+Isolation strategy (see MULTIUSER_DESIGN.md): a single database, with every
 bucket transparently namespaced by ``<username>/`` for the authenticated user.
 Clients (watchers, web UI) never see the prefix — it is added on the way in and
 stripped on the way out by ``ScopedDatastore``, which wraps the real Datastore.
